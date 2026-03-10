@@ -11,8 +11,42 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
 
-  final TextEditingController _email = TextEditingController();
-  final TextEditingController _password = TextEditingController();
+  late final TextEditingController _email;
+  late final TextEditingController _password;
+
+  @override
+  void initState() {
+    _email = TextEditingController();
+    _password = TextEditingController();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void showErrorDialog(BuildContext context, String text) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(text),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            )
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,86 +54,84 @@ class _LoginViewState extends State<LoginView> {
       appBar: AppBar(
         title: const Text('Login'),
       ),
+      body: Column(
+        children: [
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-
-            TextField(
-              controller: _email,
-              decoration: const InputDecoration(
-                hintText: 'Enter your email',
-              ),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              hintText: 'Enter your email here',
             ),
+          ),
 
-            TextField(
-              controller: _password,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: 'Enter your password',
-              ),
+          TextField(
+            controller: _password,
+            obscureText: true,
+            decoration: const InputDecoration(
+              hintText: 'Enter your password here',
             ),
+          ),
 
-            const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () async {
+              final email = _email.text;
+              final password = _password.text;
 
-            ElevatedButton(
-              onPressed: () async {
-                try {
+              try {
 
-                  await FirebaseAuth.instance.signInWithEmailAndPassword(
-                    email: _email.text,
-                    password: _password.text,
-                  );
+                final userCredential =
+                    await FirebaseAuth.instance.signInWithEmailAndPassword(
+                  email: email,
+                  password: password,
+                );
 
-                  Navigator.of(context).pushNamed(notesRoute);
+                final user = userCredential.user;
 
-                } on FirebaseAuthException catch (e) {
+                if (user != null) {
 
-                  if (e.code == 'user-not-found') {
-                    showErrorDialog(context, 'User not found');
-                  } else if (e.code == 'wrong-password') {
-                    showErrorDialog(context, 'Wrong password');
+                  if (user.emailVerified) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      notesRoute,
+                      (route) => false,
+                    );
                   } else {
-                    showErrorDialog(context, 'Authentication error');
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      verifyEmailRoute,
+                      (route) => false,
+                    );
                   }
 
                 }
-              },
 
-              child: const Text('Login'),
-            ),
+              } on FirebaseAuthException catch (e) {
 
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed(registerRoute);
-              },
-              child: const Text('Not registered yet? Register here!'),
-            )
+                if (e.code == 'user-not-found') {
+                  showErrorDialog(context, 'User not found');
+                } else if (e.code == 'wrong-password') {
+                  showErrorDialog(context, 'Wrong password');
+                } else if (e.code == 'invalid-email') {
+                  showErrorDialog(context, 'Invalid email');
+                } else {
+                  showErrorDialog(context, 'Authentication error');
+                }
 
-          ],
-        ),
+              }
+            },
+            child: const Text('Login'),
+          ),
+
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                registerRoute,
+                (route) => false,
+              );
+            },
+            child: const Text('Not registered yet? Register here!'),
+          ),
+        ],
       ),
     );
   }
-}
-
-Future<void> showErrorDialog(BuildContext context, String text) {
-  return showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Error'),
-        content: Text(text),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('OK'),
-          )
-        ],
-      );
-    },
-  );
 }
