@@ -24,8 +24,10 @@ class LoginView extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: () {},
-            child: const Text('Login'),
+            onPressed: () {
+              Navigator.of(context).pushNamed(notesRoute);
+              },
+              child: const Text('Login'),
           ),
           TextButton(
             onPressed: () {
