@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-enum MenuAction { logout }
+import '../services/auth/auth_service.dart';
+import '../constants/routes.dart';
 
 class NotesView extends StatelessWidget {
   const NotesView({super.key});
@@ -11,22 +11,15 @@ class NotesView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Main UI'),
         actions: [
-          PopupMenuButton<MenuAction>(
-            onSelected: (value) {
-              switch (value) {
-                case MenuAction.logout:
-                  print('User clicked logout');
-                  break;
-              }
+          IconButton(
+            onPressed: () async {
+              await AuthService().logout();
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                loginRoute,
+                (route) => false,
+              );
             },
-            itemBuilder: (context) {
-              return const [
-                PopupMenuItem<MenuAction>(
-                  value: MenuAction.logout,
-                  child: Text('Logout'),
-                )
-              ];
-            },
+            icon: const Icon(Icons.logout),
           )
         ],
       ),

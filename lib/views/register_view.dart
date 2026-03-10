@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/routes.dart';
+import '../services/auth/auth_service.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -10,104 +10,95 @@ class RegisterView extends StatefulWidget {
 }
 
 class _RegisterViewState extends State<RegisterView> {
+  late final TextEditingController _email;
+  late final TextEditingController _password;
 
-  final TextEditingController _email = TextEditingController();
-  final TextEditingController _password = TextEditingController();
+  @override
+  void initState() {
+    _email = TextEditingController();
+    _password = TextEditingController();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void showErrorDialog(BuildContext context, String text) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(text),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            )
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Register'),
       ),
+      body: Column(
+        children: [
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration:
+                const InputDecoration(hintText: 'Enter your email here'),
+          ),
+          TextField(
+            controller: _password,
+            obscureText: true,
+            decoration:
+                const InputDecoration(hintText: 'Enter your password here'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = _email.text;
+              final password = _password.text;
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
+              try {
+                await AuthService().register(
+                  email: email,
+                  password: password,
+                );
 
-            TextField(
-              controller: _email,
-              decoration: const InputDecoration(
-                hintText: 'Enter your email',
-              ),
-            ),
+                await AuthService().sendEmailVerification();
 
-            TextField(
-              controller: _password,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: 'Enter your password',
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: () async {
-
-                try {
-
-                  final userCredential =
-                      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                    email: _email.text,
-                    password: _password.text,
-                  );
-
-                  await userCredential.user?.sendEmailVerification();
-
-                  Navigator.of(context).pushNamed(verifyEmailRoute);
-
-                } on FirebaseAuthException catch (e) {
-
-                  if (e.code == 'weak-password') {
-                    showErrorDialog(context, 'Weak password');
-                  } else if (e.code == 'email-already-in-use') {
-                    showErrorDialog(context, 'Email already in use');
-                  } else if (e.code == 'invalid-email') {
-                    showErrorDialog(context, 'Invalid email');
-                  } else {
-                    showErrorDialog(context, 'Registration error');
-                  }
-
-                }
-
-              },
-
-              child: const Text('Register'),
-            ),
-
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed(loginRoute);
-              },
-              child: const Text('Already registered? Login here!'),
-            )
-
-          ],
-        ),
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  verifyEmailRoute,
+                  (route) => false,
+                );
+              } catch (e) {
+                showErrorDialog(context, 'Failed to register');
+              }
+            },
+            child: const Text('Register'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                loginRoute,
+                (route) => false,
+              );
+            },
+            child: const Text('Already registered? Login here!'),
+          )
+        ],
       ),
     );
   }
-}
-
-Future<void> showErrorDialog(BuildContext context, String text) {
-  return showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Error'),
-        content: Text(text),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('OK'),
-          )
-        ],
-      );
-    },
-  );
 }

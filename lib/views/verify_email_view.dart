@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth/auth_service.dart';
+import '../constants/routes.dart';
 
 class VerifyEmailView extends StatelessWidget {
   const VerifyEmailView({super.key});
@@ -9,40 +11,77 @@ class VerifyEmailView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Verify Email'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'We have sent you an email verification. Please check your email to verify your account.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
 
-            const SizedBox(height: 20),
+              const Text(
+                'We have sent a verification email to your address.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18),
+              ),
 
-            const Text(
-              'If you did not receive the email, press the button below.',
-              textAlign: TextAlign.center,
-            ),
+              const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
+              const Text(
+                'Please check your email and click the verification link.',
+                textAlign: TextAlign.center,
+              ),
 
-            ElevatedButton(
-              onPressed: () {
-                // nanti digunakan untuk kirim ulang email verifikasi
-              },
-              child: const Text('Send email verification again'),
-            ),
+              const SizedBox(height: 30),
 
-            TextButton(
-              onPressed: () {
-                // nanti digunakan untuk logout / restart
-              },
-              child: const Text('Restart'),
-            ),
-          ],
+              ElevatedButton(
+                onPressed: () async {
+                  await AuthService().sendEmailVerification();
+                },
+                child: const Text('Resend Verification Email'),
+              ),
+
+              const SizedBox(height: 10),
+
+              ElevatedButton(
+                onPressed: () async {
+
+                  final user = AuthService().currentUser;
+
+                  await user?.reload();
+
+                  final refreshedUser = AuthService().currentUser;
+
+                  if (refreshedUser != null && refreshedUser.emailVerified) {
+
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      notesRoute,
+                      (route) => false,
+                    );
+
+                  }
+
+                },
+                child: const Text('I Have Verified'),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextButton(
+                onPressed: () async {
+
+                  await AuthService().logout();
+
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    loginRoute,
+                    (route) => false,
+                  );
+
+                },
+                child: const Text('Restart'),
+              )
+
+            ],
+          ),
         ),
       ),
     );
