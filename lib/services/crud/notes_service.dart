@@ -1,23 +1,29 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'note.dart';
 
 class NotesService {
+  Database? _db;
 
-  static Database? _db;
+  List<DatabaseNote> _notes = [];
+
+  final _notesStreamController =
+      StreamController<List<DatabaseNote>>.broadcast();
+
+  Stream<List<DatabaseNote>> get allNotes =>
+      _notesStreamController.stream;
 
   Future<Database> get database async {
-
     if (_db != null) {
       return _db!;
+    } else {
+      _db = await _openDatabase();
+      return _db!;
     }
-
-    _db = await _openDatabase();
-    return _db!;
   }
 
   Future<Database> _openDatabase() async {
-
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'notes.db');
 
@@ -25,59 +31,98 @@ class NotesService {
       path,
       version: 1,
       onCreate: (db, version) async {
-
         await db.execute('''
         CREATE TABLE notes(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           text TEXT
         )
         ''');
-
       },
     );
   }
 
-  Future<int> createNote(String text) async {
-
+  Future<List<DatabaseNote>> getAllNotes() async {
     final db = await database;
 
-    return await db.insert(
+    final notes = await db.query('notes');
+
+    _notes = notes.map((note) => DatabaseNote.fromRow(note)).toList();
+
+    _notesStreamController.add(_notes);
+
+    return _notes;
+  }
+
+  Future<DatabaseNote> createNote() async {
+    final db = await database;
+
+    const text = '';
+
+    final id = await db.insert(
       'notes',
-      {'text': text},
+      {
+        'text': text,
+      },
     );
 
+    final note = DatabaseNote(
+      id: id,
+      text: text,
+    );
+
+    _notes.add(note);
+
+    _notesStreamController.add(_notes);
+
+    return note;
   }
 
-  Future<List<Map<String, dynamic>>> getNotes() async {
-
+  Future<DatabaseNote> updateNote({
+    required int id,
+    required String text,
+  }) async {
     final db = await database;
 
-    return await db.query('notes');
-
-  }
-
-  Future<int> updateNote(int id, String text) async {
-
-    final db = await database;
-
-    return await db.update(
+    await db.update(
       'notes',
-      {'text': text},
+      {
+        'text': text,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
 
+    final updatedNote = DatabaseNote(
+      id: id,
+      text: text,
+    );
+
+    final index = _notes.indexWhere((note) => note.id == id);
+
+    if (index != -1) {
+      _notes[index] = updatedNote;
+    }
+
+    _notesStreamController.add(_notes);
+
+    return updatedNote;
   }
 
-  Future<int> deleteNote(int id) async {
-
+  Future<void> deleteNote(int id) async {
     final db = await database;
 
-    return await db.delete(
+    await db.delete(
       'notes',
       where: 'id = ?',
       whereArgs: [id],
     );
 
+    _notes.removeWhere((note) => note.id == id);
+
+    _notesStreamController.add(_notes);
+  }
+
+  void dispose() {
+    _notesStreamController.close();
   }
 }
