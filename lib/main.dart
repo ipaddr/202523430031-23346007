@@ -6,6 +6,7 @@ import 'views/verify_email_view.dart';
 import 'constants/routes.dart';
 import 'views/register_view.dart';
 import 'views/notes_view.dart';
+import 'views/create_update_note_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
         registerRoute: (context) => const RegisterView(),
         loginRoute: (context) => const LoginView(),
         notesRoute: (context) => const NotesView(),
+        createOrUpdateNoteRoute: (context) => const CreateUpdateNoteView(),
       },
       home: const LoginView(),
     );
