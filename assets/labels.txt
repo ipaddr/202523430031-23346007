@@ -1,0 +1,20 @@
+0 botol
+1 buku
+2 charger
+3 dompet
+4 garpu
+5 gelas
+6 headset
+7 hp
+8 jam tangan
+9 keyboard
+10 kunci
+11 laptop
+12 mouse
+13 pena
+14 piring
+15 remot tv
+16 sendok
+17 sepatu
+18 tas
+19 topi
