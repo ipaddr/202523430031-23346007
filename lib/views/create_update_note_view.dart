@@ -6,10 +6,12 @@ class CreateUpdateNoteView extends StatefulWidget {
   const CreateUpdateNoteView({super.key});
 
   @override
-  State<CreateUpdateNoteView> createState() => _CreateUpdateNoteViewState();
+  State<CreateUpdateNoteView> createState() =>
+      _CreateUpdateNoteViewState();
 }
 
-class _CreateUpdateNoteViewState extends State<CreateUpdateNoteView> {
+class _CreateUpdateNoteViewState
+    extends State<CreateUpdateNoteView> {
 
   DatabaseNote? _note;
   late final NotesService _notesService;
@@ -18,39 +20,48 @@ class _CreateUpdateNoteViewState extends State<CreateUpdateNoteView> {
   @override
   void initState() {
     super.initState();
+
     _notesService = NotesService();
     _textController = TextEditingController();
-    _createNote();
   }
 
-  Future<void> _createNote() async {
-    final note = await _notesService.createNote();
-    _note = note;
-  }
+  Future<void> _createOrGetExistingNote(BuildContext context) async {
 
-  Future<void> _deleteNoteIfTextIsEmpty() async {
-    final note = _note;
-    if (_textController.text.isEmpty && note != null) {
-      await _notesService.deleteNote(note.id);
+    final widgetNote =
+        ModalRoute.of(context)?.settings.arguments
+            as DatabaseNote?;
+
+    // jika note lama → gunakan note lama
+    if (widgetNote != null) {
+      _note = widgetNote;
+      _textController.text = widgetNote.text;
+      return;
     }
-  }
 
-  Future<void> _saveNoteIfTextNotEmpty() async {
-    final note = _note;
-    final text = _textController.text;
+    // jika note baru → buat note baru
+    final existingNote = _note;
+    if (existingNote != null) return;
 
-    if (note != null && text.isNotEmpty) {
-      await _notesService.updateNote(
-        id: note.id,
-        text: text,
-      );
-    }
+    final newNote = await _notesService.createNote();
+    _note = newNote;
   }
 
   @override
   void dispose() {
-    _deleteNoteIfTextIsEmpty();
-    _saveNoteIfTextNotEmpty();
+    final note = _note;
+    final text = _textController.text;
+
+    if (note != null) {
+      if (text.isEmpty) {
+        _notesService.deleteNote(note.id);
+      } else {
+        _notesService.updateNote(
+          id: note.id,
+          text: text,
+        );
+      }
+    }
+
     _textController.dispose();
     super.dispose();
   }
@@ -58,30 +69,50 @@ class _CreateUpdateNoteViewState extends State<CreateUpdateNoteView> {
   @override
   Widget build(BuildContext context) {
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('New Note'),
-      ),
+    return FutureBuilder(
+      future: _createOrGetExistingNote(context),
 
-      body: TextField(
-        controller: _textController,
-        keyboardType: TextInputType.multiline,
-        maxLines: null,
-        decoration: const InputDecoration(
-          hintText: 'Start typing your note...',
-        ),
+      builder: (context, snapshot) {
 
-        onChanged: (text) async {
-          final note = _note;
+        switch (snapshot.connectionState) {
 
-          if (note != null) {
-            await _notesService.updateNote(
-              id: note.id,
-              text: text,
+          case ConnectionState.done:
+
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Your Note'),
+              ),
+
+              body: TextField(
+                controller: _textController,
+                keyboardType: TextInputType.multiline,
+                maxLines: null,
+
+                decoration: const InputDecoration(
+                  hintText: 'Start typing your note...',
+                ),
+
+                onChanged: (text) async {
+                  final note = _note;
+
+                  if (note != null) {
+                    await _notesService.updateNote(
+                      id: note.id,
+                      text: text,
+                    );
+                  }
+                },
+              ),
             );
-          }
-        },
-      ),
+
+          default:
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+        }
+      },
     );
   }
 }

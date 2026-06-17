@@ -4,7 +4,6 @@ import '../constants/routes.dart';
 import '../services/crud/notes_service.dart';
 import '../services/crud/note.dart';
 import 'notes_list_view.dart';
-import '../utilities/dialogs/delete_dialog.dart';
 
 class NotesView extends StatefulWidget {
 
