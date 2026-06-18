@@ -6,33 +6,38 @@ import '../services/crud/note.dart';
 import 'notes_list_view.dart';
 
 class NotesView extends StatefulWidget {
-
   const NotesView({super.key});
 
   @override
   State<NotesView> createState() => _NotesViewState();
 }
+
 class _NotesViewState extends State<NotesView> {
   final NotesService _notesService = NotesService();
 
   @override
   void initState() {
     super.initState();
-
-    // mengambil semua notes dari database
-    _notesService.getAllNotes();
-
-    // debug database (boleh dihapus nanti)
-    _debugDatabase();
+    _setupUser();
   }
 
-  Future<void> _debugDatabase() async {
-    final notes = await _notesService.getAllNotes();
-    print(notes);
+  // ambil user firebase lalu load notes miliknya
+  Future<void> _setupUser() async {
+    final user = AuthService().currentUser;
+
+    if (user != null) {
+      await _notesService.getOrCreateUser(
+        email: user.email!,
+      );
+
+      await _notesService.getAllNotes();
+    }
   }
 
   Future<void> _logout(BuildContext context) async {
     await AuthService().logout();
+
+    if (!mounted) return;
 
     Navigator.of(context).pushNamedAndRemoveUntil(
       loginRoute,
@@ -55,19 +60,16 @@ class _NotesViewState extends State<NotesView> {
         ],
       ),
 
-      // menampilkan notes dari stream
       body: StreamBuilder<List<DatabaseNote>>(
         stream: _notesService.allNotes,
         builder: (context, snapshot) {
           switch (snapshot.connectionState) {
-
             case ConnectionState.waiting:
               return const Center(
                 child: CircularProgressIndicator(),
               );
 
             case ConnectionState.active:
-
               if (snapshot.hasData) {
                 final notes = snapshot.data!;
 
@@ -80,12 +82,14 @@ class _NotesViewState extends State<NotesView> {
                 return NotesListView(
                   notes: notes,
 
-                  // delete note (dipakai tahap berikutnya)
+                  // delete note
                   onDeleteNote: (note) async {
-                    await _notesService.deleteNote(note.id);
+                    await _notesService.deleteNote(
+                      note.id,
+                    );
                   },
 
-                  // tap note untuk update/edit
+                  // edit existing note
                   onTap: (note) {
                     Navigator.of(context).pushNamed(
                       createOrUpdateNoteRoute,
@@ -107,7 +111,6 @@ class _NotesViewState extends State<NotesView> {
         },
       ),
 
-      // tombol tambah note
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).pushNamed(

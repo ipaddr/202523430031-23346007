@@ -6,6 +6,8 @@ import 'note.dart';
 class NotesService {
   Database? _db;
 
+  DatabaseUser? _user;
+
   List<DatabaseNote> _notes = [];
 
   final _notesStreamController =
@@ -29,24 +31,83 @@ class NotesService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
+        // USERS TABLE
+        await db.execute('''
+        CREATE TABLE users(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT NOT NULL UNIQUE
+        )
+        ''');
+
+        // NOTES TABLE
         await db.execute('''
         CREATE TABLE notes(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          text TEXT
+          user_id INTEGER NOT NULL,
+          text TEXT,
+          FOREIGN KEY(user_id) REFERENCES users(id)
         )
         ''');
       },
     );
   }
 
+  // ================= USER =================
+
+  Future<DatabaseUser> getOrCreateUser({
+    required String email,
+  }) async {
+    final db = await database;
+
+    final result = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email.toLowerCase()],
+    );
+
+    if (result.isNotEmpty) {
+      final existingUser =
+          DatabaseUser.fromRow(result.first);
+
+      _user = existingUser;
+      return existingUser;
+    }
+
+    final userId = await db.insert(
+      'users',
+      {
+        'email': email.toLowerCase(),
+      },
+    );
+
+    final newUser = DatabaseUser(
+      id: userId,
+      email: email,
+    );
+
+    _user = newUser;
+    return newUser;
+  }
+
+  // ================= NOTES =================
+
   Future<List<DatabaseNote>> getAllNotes() async {
     final db = await database;
 
-    final notes = await db.query('notes');
+    if (_user == null) {
+      throw Exception("Current user not set");
+    }
 
-    _notes = notes.map((note) => DatabaseNote.fromRow(note)).toList();
+    final notes = await db.query(
+      'notes',
+      where: 'user_id = ?',
+      whereArgs: [_user!.id],
+    );
+
+    _notes =
+        notes.map((note) => DatabaseNote.fromRow(note)).toList();
 
     _notesStreamController.add(_notes);
 
@@ -56,17 +117,23 @@ class NotesService {
   Future<DatabaseNote> createNote() async {
     final db = await database;
 
+    if (_user == null) {
+      throw Exception("Current user not set");
+    }
+
     const text = '';
 
     final id = await db.insert(
       'notes',
       {
+        'user_id': _user!.id,
         'text': text,
       },
     );
 
     final note = DatabaseNote(
       id: id,
+      userId: _user!.id,
       text: text,
     );
 
@@ -94,6 +161,7 @@ class NotesService {
 
     final updatedNote = DatabaseNote(
       id: id,
+      userId: _user!.id,
       text: text,
     );
 
